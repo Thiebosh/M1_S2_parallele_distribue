@@ -3,10 +3,14 @@
     -> self.search_updates(self.root_directory)
         for path_file, dirs, files in os.walk(directory):
             for dir_name in dirs:
-                if self.is_superior_max_depth(folder_path) is False:
-                     if folder_path not in self.synchronize_dict.keys():
-                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
-                            => self.ftp.create_folder(srv_full_path) # final
+                #async here
+                    if self.is_superior_max_depth(folder_path) is False:
+                        if folder_path not in self.synchronize_dict.keys():
+                            if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
+                                => self.ftp.create_folder(srv_full_path) # final
+            
+            # wait all folder async
+
             for file_name in files:
                 if self.is_superior_max_depth(file_path) is False and (self.contain_excluded_extensions(file_path) is False):
                     if file_path in self.synchronize_dict.keys():
