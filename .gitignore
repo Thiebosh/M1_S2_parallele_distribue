@@ -4,9 +4,11 @@ __pycache__/
 *$py.class
 
 # logfile
-logfile.*
+log_file.*
 .idea/
 .vscode/
+.bat
+command
 
 # C extensions
 *.so
