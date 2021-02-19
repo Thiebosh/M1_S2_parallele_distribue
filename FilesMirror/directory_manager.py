@@ -4,6 +4,7 @@ import time
 from Directory import Directory
 from File import File
 from talk_to_ftp import TalkToFTP
+import asyncio
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -35,8 +36,8 @@ class DirectoryManager:
             self.ftp.create_folder(self.ftp.directory)
         self.ftp.disconnect()
 
-    def synchronize_directory(self, frequency):
-        while True:
+    async def synchronize_directory(self, frequency):
+        while True:  # not event_end.is_set(): => thread
             # init the path explored to an empty list before each synchronization
             self.paths_explored = []
 
@@ -45,15 +46,23 @@ class DirectoryManager:
 
             # search for an eventual updates of files in the root directory
             self.ftp.connect()
-            self.search_updates(self.root_directory)
+            tasks = [self.search_updates(self.root_directory)]
 
-            # look for any removals of files / directories
-            self.any_removals()
+            # if the length of the files & folders to synchronize != number of path explored
+            # file / folder got removed
+            if len(self.synchronize_dict.keys()) != len(self.paths_explored):
+                # look for any removals of files / directories
+                tasks.append(self.any_removals())
+
+            await asyncio.gather(*tasks)
+
             self.ftp.disconnect()
 
+            print(".")
             # wait before next synchronization
-            time.sleep(frequency)
+            await asyncio.sleep(frequency)
 
+    @asyncio.coroutine
     def search_updates(self, directory):
         # scan recursively all files & directories in the root directory
         for path_file, dirs, files in os.walk(directory):
@@ -112,12 +121,8 @@ class DirectoryManager:
                         # add this file on the FTP server
                         self.ftp.file_transfer(path_file, srv_full_path, file_name)
 
+    @asyncio.coroutine
     def any_removals(self):
-        # if the length of the files & folders to synchronize == number of path explored
-        # no file / folder got removed
-        if len(self.synchronize_dict.keys()) == len(self.paths_explored):
-            return
-
         # get the list of the files & folders removed
         path_removed_list = [key for key in self.synchronize_dict.keys() if key not in self.paths_explored]
 
@@ -183,15 +188,9 @@ class DirectoryManager:
     # subtract current number of os separator to the number of os separator for the root directory
     # if it's superior to the max depth, we do nothing
     def is_superior_max_depth(self, path):
-        if (len(path.split(os.path.sep)) - self.os_separator_count) <= self.depth:
-            return False
-        else:
-            return True
+        return ((len(path.split(os.path.sep)) - self.os_separator_count) > self.depth)
 
     # check if the file contains a prohibited extensions
     def contain_excluded_extensions(self, file):
         extension = file.split(".")[1]
-        if ".{0}".format(extension) in self.excluded_extensions:
-            return True
-        else:
-            return False
+        return (".{0}".format(extension) in self.excluded_extensions)
