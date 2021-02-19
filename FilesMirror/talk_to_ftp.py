@@ -47,9 +47,6 @@ class TalkToFTP:
         return new_list
 
     def if_exist(self, element, list):
-        if element in list:
-            return True
-        else:
-            return False
+        return (element in list)
 
 
