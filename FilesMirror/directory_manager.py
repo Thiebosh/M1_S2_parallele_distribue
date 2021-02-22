@@ -5,6 +5,7 @@ from Directory import Directory
 from File import File
 from talk_to_ftp import TalkToFTP
 import asyncio
+import async_lib
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -36,7 +37,12 @@ class DirectoryManager:
             self.ftp.create_folder(self.ftp.directory)
         self.ftp.disconnect()
 
-    async def synchronize_directory(self, frequency, queue):
+    async def synchronize_directory(self, frequency):
+        event_end = asyncio.Event()
+        asyncio.get_running_loop().call_later(1, asyncio.ensure_future, async_lib.ainput(event_end))
+
+        queue = asyncio.Queue()
+
         while True:
             # init the path explored to an empty list before each synchronization
             self.paths_explored = []
@@ -60,12 +66,10 @@ class DirectoryManager:
 
             # wait before next synchronization
             print(".")
-            await asyncio.sleep(frequency)
+            if await async_lib.event_wait(event_end, frequency):
+                break
 
     async def search_updates(self, directory, queue):
-        # start 2nd coroutine
-        await asyncio.sleep(0.1)
-
         # scan recursively all files & directories in the root directory
         for path_file, dirs, files in os.walk(directory):
 
@@ -93,7 +97,7 @@ class DirectoryManager:
                             # add this directory to the FTP server
                             self.ftp.create_folder(srv_full_path)
 
-            # wait the end of operations
+            # wait the end of operations, start 2nd coroutine here if work
             await queue.join()
 
             for file_name in files:
