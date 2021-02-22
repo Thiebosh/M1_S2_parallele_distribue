@@ -13,6 +13,8 @@ if __name__ == "__main__":
     # launch the synchronization
     try:
         asyncio.run(directory_manager.synchronize_directory(refresh_frequency))
+    except KeyboardInterrupt as e:
+        print("Unnecessary keyboard interrupt : simply press enter")
     except Exception as e:
         print(f"Exception : {e}")
     finally:

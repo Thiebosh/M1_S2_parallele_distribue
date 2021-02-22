@@ -39,9 +39,13 @@ class DirectoryManager:
 
     async def synchronize_directory(self, frequency):
         event_end = asyncio.Event()
-        asyncio.get_running_loop().call_later(1, asyncio.ensure_future, async_lib.ainput(event_end))
+        asyncio.get_running_loop().call_soon(asyncio.ensure_future, async_lib.ainput(event_end))
 
-        queue = asyncio.Queue()
+        queue_update = asyncio.Queue()
+        queue_update_lock = asyncio.Lock()
+
+        queue_removal = asyncio.Queue()
+        queue_removal_lock = asyncio.Lock()
 
         while True:
             # init the path explored to an empty list before each synchronization
@@ -52,13 +56,13 @@ class DirectoryManager:
 
             # search for an eventual updates of files in the root directory
             self.ftp.connect()
-            tasks = [self.search_updates(self.root_directory, queue)]
+            tasks = [self.search_updates(self.root_directory, queue_update, queue_update_lock)]
 
             # if the length of the files & folders to synchronize != number of path explored
             # file / folder got removed
             if len(self.synchronize_dict.keys()) != len(self.paths_explored):
                 # look for any removals of files / directories
-                tasks.append(self.any_removals(queue))
+                tasks.append(self.any_removals(queue_removal, queue_removal_lock))
 
             await asyncio.gather(*tasks)
 
@@ -69,7 +73,7 @@ class DirectoryManager:
             if await async_lib.event_wait(event_end, frequency):
                 break
 
-    async def search_updates(self, directory, queue):
+    async def search_updates(self, directory, queue, lock):
         # scan recursively all files & directories in the root directory
         for path_file, dirs, files in os.walk(directory):
 
@@ -95,7 +99,8 @@ class DirectoryManager:
                         directory_split = srv_full_path.rsplit(os.path.sep,1)[0]
                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
                             # add this directory to the FTP server
-                            self.ftp.create_folder(srv_full_path)
+                            with lock:
+                                self.ftp.create_folder(srv_full_path) # queue.put(something)
 
             # wait the end of operations, start 2nd coroutine here if work
             await queue.join()
@@ -117,9 +122,10 @@ class DirectoryManager:
                             # file get updates
                             split_path = file_path.split(self.root_directory)
                             srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
-                            self.ftp.remove_file(srv_full_path)
-                            # update this file on the FTP server
-                            self.ftp.file_transfer(path_file, srv_full_path, file_name)
+                            with lock:
+                                self.ftp.remove_file(srv_full_path) # queue.put(something) => 2 commands in one shot?
+                                # update this file on the FTP server
+                                self.ftp.file_transfer(path_file, srv_full_path, file_name) # queue.put(something)
 
                     else:
 
@@ -128,9 +134,10 @@ class DirectoryManager:
                         split_path = file_path.split(self.root_directory)
                         srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                         # add this file on the FTP server
-                        self.ftp.file_transfer(path_file, srv_full_path, file_name)
+                        # with lock:
+                        self.ftp.file_transfer(path_file, srv_full_path, file_name) # queue.put(something)
 
-    async def any_removals(self, queue):
+    async def any_removals(self, queue, lock):
         # get the list of the files & folders removed
         path_removed_list = [key for key in self.synchronize_dict.keys() if key not in self.paths_explored]
 
@@ -143,7 +150,8 @@ class DirectoryManager:
                 if isinstance(self.synchronize_dict[removed_path], File):
                     split_path = removed_path.split(self.root_directory)
                     srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
-                    self.ftp.remove_file(srv_full_path)
+                    with lock:
+                        self.ftp.remove_file(srv_full_path) # queue.put(something)
                     self.to_remove_from_dict.append(removed_path)
 
                 elif isinstance(self.synchronize_dict[removed_path], Directory):
@@ -183,7 +191,8 @@ class DirectoryManager:
             for to_delete in sorted_containers[i]:
                 to_delete_ftp = "{0}{1}{2}".format(self.ftp.directory, os.path.sep, to_delete.split(self.root_directory)[1])
                 if isinstance(self.synchronize_dict[to_delete], File):
-                    self.ftp.remove_file(to_delete_ftp)
+                    with lock:
+                        self.ftp.remove_file(to_delete_ftp) # queue.put(something)
                     self.to_remove_from_dict.append(to_delete)
                 else:
                     # if it's again a directory, we delete all his containers also
@@ -194,7 +203,8 @@ class DirectoryManager:
 
         # once all the containers of the directory got removed
         # we can delete the directory also
-        self.ftp.remove_folder(srv_full_path)
+        with lock:
+            self.ftp.remove_folder(srv_full_path) # queue.put(something)
         self.to_remove_from_dict.append(removed_directory)
 
     # subtract current number of os separator to the number of os separator for the root directory
