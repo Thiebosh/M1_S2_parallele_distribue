@@ -1,6 +1,10 @@
 from directory_manager import DirectoryManager
 from get_parameters import get_user_parameters
 import asyncio
+from logger import Logger
+
+
+PYTHONASYNCIODEBUG = 1
 
 
 if __name__ == "__main__":
@@ -13,9 +17,7 @@ if __name__ == "__main__":
     # launch the synchronization
     try:
         asyncio.run(directory_manager.synchronize_directory(refresh_frequency))
-    except KeyboardInterrupt as e:
-        print("Unnecessary keyboard interrupt : simply press enter")
     except Exception as e:
-        print(f"Exception : {e}")
+        Logger.log_critical(e)
     finally:
-        print("Stop synchronization")
+        Logger.log_info("Close program")

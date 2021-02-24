@@ -24,6 +24,19 @@ changelog :
 
 - garde les ftp connect et disconnect de synchronize directory car cette connexion sert à consulter l'état de l'arborescence en ligne
 
+- threads = 2 approches :
+    - connexion pour exécuter une série de tâches puis déconnexion
+    - connexion le temps d'exécuter une tâche puis déconnexion
+
+- threads = plusieurs choses à guetter :
+    - remplissage de la queue
+    - événement de fermeture
+    - éventuellement événement de connexion / déconnexion
+
+- exemple async tasks : https://docs.python.org/3/library/asyncio-queue.html
+
+- aioftp : port 21 par défaut
+
 
 #### todo
 - retirer sleep de début : si jobs, pause au milieu du premier et second pourra prendre le relai. Attention : asynchrone = une seule file d'exécution remplie au mieux, donc met en sommeil fonctions qui peuvent l'être pour éveiller fonctions qui doivent l'être
