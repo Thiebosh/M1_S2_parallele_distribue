@@ -23,41 +23,7 @@ async def event_wait(evt, timeout):
 
 # thread section
 
-
-async def async_worker(evt_end, evt_connect, evt_disconnect, ftp_website, queue, lock):
-    # en vrai async, peut éventuellement faire :
-    # si queue contient quelque chose, je le prend et m'exécute
-    # si événement connect ou deconnect pop, je fais l'action équivalente
-    # si événement fin pop, je me termine
-
-    ftp = TalkToFTP(ftp_website)
-    isLogged = False
-
-    while not evt_end.is_set():
-        if evt_connect.is_set():
-            ftp.connect()
-            evt_connect.unset()
-            isLogged = True
-
-        elif evt_disconnect.is_set():
-            ftp.disconnect()
-            evt_disconnect.unset()
-            isLogged = False
-
-        if not isLogged:
-            await asyncio.sleep(1)
-            continue
-
-        async with lock:
-            if not queue.empty():
-                task = queue.get()
-
-        # execute task
-
-        await asyncio.sleep(1)
-
-
-async def async_worker_bis(evt_end, ftp_website, queue, lock):
+async def async_worker(evt_end, ftp_website, queue, lock):
     ftp = TalkToFTP(ftp_website)
     task = None
 
@@ -68,12 +34,9 @@ async def async_worker_bis(evt_end, ftp_website, queue, lock):
 
     while not evt_end.is_set(): # true
         try:
-            print("     wait lock")
             async with lock:
-                print("     get lock")
                 if not queue.empty():
                     task = await queue.get()
-            print("     release lock")
 
             if not task:
                 continue
@@ -84,9 +47,9 @@ async def async_worker_bis(evt_end, ftp_website, queue, lock):
                 functions[task[0]](*task[1])
             else:
                 Logger.log_critical(f"thread - Unknow method")
-            task = None
 
             ftp.disconnect()
+            task = None
 
         except Exception as e:
             Logger.log_critical(f"thread - {e}")
@@ -94,14 +57,10 @@ async def async_worker_bis(evt_end, ftp_website, queue, lock):
 
         finally:
             await asyncio.sleep(1)
-            # if await async_lib.event_wait(evt_end, 1):
-            #     break
-
-    print(f"close thread")
 
 
 def async_worker_launcher(evt_end, ftp_website, queue, lock):
-    asyncio.run(async_worker_bis(evt_end, ftp_website, queue, lock))
+    asyncio.run(async_worker(evt_end, ftp_website, queue, lock))
 
 
 def thread_pool(nb_threads, evt_end, ftp_website, queue, lock):
