@@ -14,6 +14,15 @@ changelog :
     - add little sleep in first coroutine for starting second coroutine
     - add queue synchronisation for after
 
+**Step3 :**
+- synchronize_directory run coroutines concurrently :
+    - sleep replaced by join() on queue
+    - send method name and args to threads and execute them
+
+**Step4 :**
+- replace join by wait until empty
+- add nb_multi parameter
+
 
 #### notes
 - décorateur asyncio.coroutine rend fonction synchrone exécutable dans un contexte asynchrone. Mais si la fonction décorée ne fait aucun appel à asyncio, elle est exécutée de façon synchrone.
