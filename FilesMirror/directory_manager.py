@@ -95,7 +95,7 @@ class DirectoryManager:
             Logger.log_critical(e)
 
         finally:
-            evt_end.set() # stop threads
+            evt_end.set() # stop all
             Logger.log_info("Stop synchronization")
 
     async def search_updates(self, directory, lock, queue_high, queue_low):

@@ -35,14 +35,12 @@ changelog :
 
 **Step2 :**
 - synchronize main thread and workers (3way handshake style)
+- stop threads at any time if sleeping
 
 Step3 :
 - sort files transfert by weigth in auxiliary thread before send them in queue
 
-Setp4 :
-- stop threads at any time if sleeping
-
-Step5 :
+Step4 :
 - stop synchronization at any time ?
 
 #### notes
@@ -71,10 +69,3 @@ Step5 :
 
 - pour esquiver pb de concurrences avec async lock, run tout dans la main loop (appel de fonction, retourne un future object contenant les résultats)
 
-
-#### todo
-- retirer sleep de début : si jobs, pause au milieu du premier et second pourra prendre le relai. Attention : asynchrone = une seule file d'exécution remplie au mieux, donc met en sommeil fonctions qui peuvent l'être pour éveiller fonctions qui doivent l'être
-
-- pour rendre le tout plus efficace sans changer trop (pas de lib ftp async), thread principal asynchrone qui enqueue les tâches + pool de threads secondaires asynchrones qui les exécutent
-
-- envoyer aux threads asynchrones nom méthode + arguments pour qu'ils se chargent d'appeler la bonne méthode avec leur propre instance de ftp...

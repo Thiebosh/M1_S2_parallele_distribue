@@ -50,46 +50,40 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
 
     core_args = (lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, 1)
 
-    while not evt_end.is_set():
-        try:
+    try:
+        duration = 0
+        while not asyncio.run_coroutine_threadsafe(event_wait(evt_end, duration), main_loop).result(): # run on main thread's loop
+
             if evt_done_workers.is_set():
                 duration = frequency # - timestamp diff
                 continue
 
-            task, duration = asyncio.run_coroutine_threadsafe(synchronous_core(*core_args), main_loop).result()
-
-            # async with lock:
-            #     if not queue_high.empty():
-            #         task = await queue_high.get()
-
-            #     elif not queue_low.empty():
-            #         task = await queue_low.get()
-
-            #     elif evt_done_main.is_set():
-            #         main_loop.call_soon_threadsafe(lambda: evt_done_workers.set())
-            #         evt_done_main.clear()
-            #         # store timestamp
-            #         duration = frequency
+            task, duration = asyncio.run_coroutine_threadsafe(synchronous_core(*core_args), main_loop).result() # run on main thread's loop
 
             if not task:
                 continue
 
-            ftp.connect()
+            try:
+                ftp.connect()
 
-            if task[0] in functions:
-                functions[task[0]](*task[1])
-            else:
-                Logger.log_critical(f"thread {id} - Unknow method")
+                if task[0] in functions:
+                    functions[task[0]](*task[1])
+                else:
+                    Logger.log_critical(f"thread {id} - Unknow method")
 
-            ftp.disconnect()
-            task = None
+                ftp.disconnect()
+                task = None
 
-        except Exception as e:
-            Logger.log_critical(f"thread {id} - {e}")
-            break
+            except Exception as e:
+                Logger.log_critical(f"thread {id} - {e}")
+                break
 
-        finally:
-            await asyncio.sleep(duration)
+    except Exception as e:
+        Logger.log_critical(f"thread {id} - {e}")
+
+    finally:
+        evt_end.set() # stop all
+        Logger.log_info(f"thread {id} - Stop synchronization")
 
 
 def thread_pool(nb_threads, worker_args):
