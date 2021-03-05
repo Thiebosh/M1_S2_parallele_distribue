@@ -4,6 +4,8 @@ changelog :
 
 #### V1
 
+**Idea :** apply parallelization principles to ftp operations
+
 **Step1 :**
 - synchronize_directory passed async :
     - it await a gather of search_updates and, under condition, any_removals coroutines. Problem here is that without await into coroutine, gather works synchronously
@@ -22,6 +24,15 @@ changelog :
 **Step4 :**
 - replace join by wait until empty
 - add nb_multi parameter
+
+
+#### V2
+
+**Idea :** improve parallelization performances with algorithm
+
+**Setp1 :**
+- set high and low priority ftp operation queues
+
 
 
 #### notes
