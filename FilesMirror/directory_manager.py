@@ -81,11 +81,8 @@ class DirectoryManager:
 
                 self.ftp.disconnect()
 
-                print("syn")
                 evt_done_main.set()
-                print("wait for syn ack")
                 await evt_done_workers.wait()
-                print("ack")
                 print(".")
         
         except KeyboardInterrupt as e:
@@ -95,7 +92,7 @@ class DirectoryManager:
             Logger.log_critical(e)
 
         finally:
-            evt_end.set() # stop all
+            await asyncio.sleep(0.2) # attendre fin threads
             Logger.log_info("Stop synchronization")
 
     async def search_updates(self, directory, lock, queue_high, queue_low):

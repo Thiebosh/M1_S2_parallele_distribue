@@ -33,8 +33,8 @@ async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_
             task = await queue_low.get()
 
     if not task and evt_done_main.is_set():
-        evt_done_workers.set()
         evt_done_main.clear()
+        evt_done_workers.set()
         # store timestamp
         duration = frequency
 
@@ -82,8 +82,11 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
         Logger.log_critical(f"thread {id} - {e}")
 
     finally:
-        evt_end.set() # stop all
-        Logger.log_info(f"thread {id} - Stop synchronization")
+        if evt_done_main.is_set():
+            evt_done_main.clear()
+            main_loop.call_soon_threadsafe(lambda: evt_done_workers.set()) # run on main thread's loop
+
+        Logger.log_info(f"thread {id} - Stop")
 
 
 def thread_pool(nb_threads, worker_args):
