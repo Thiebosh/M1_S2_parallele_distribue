@@ -12,7 +12,7 @@ def get_user_parameters():
     parser.add_argument("local_directory", help="Directory we want to synchronize", type=str)
     parser.add_argument("max_depth", help="Maximal depth to synchronize starting from the root directory", type=int)
     parser.add_argument("refresh_frequency", help="Refresh frequency to synchronize with FTP server (in seconds)", type=int)
-    parser.add_argument("nb_multi", nargs='?', help="Number of dedicated processes (optional)", type=int, default=1)
+    parser.add_argument("nb_multi", nargs='?', help="Number of dedicated threads (optional)", type=int, default=1)
     parser.add_argument("excluded_extensions", nargs='*', help="List of the extensions to excluded when synchronizing (optional)",
                         type=str, default=[])
     # nargs = '*' : the last argument take zero or more parameter
@@ -51,12 +51,12 @@ def get_user_parameters():
             Logger.log_error("Invalid value for the refresh frequency : it can not be inferior or equal to 0")
             wrong_input = True
 
-    # get the number of processes
+    # get the number of threads
     try:
         nb_multi = int(args.nb_multi)
         nb_multi = 1 if nb_multi not in range(1, 41) else nb_multi
     except ValueError:
-        Logger.log_error("Invalid input for the number of processes : must be an integer")
+        Logger.log_error("Invalid input for the number of threads : must be an integer")
         wrong_input = True
 
     # get a list of the excluded extensions
@@ -64,6 +64,6 @@ def get_user_parameters():
 
     if wrong_input is False:
         Logger.log_info("Valid parameters")
-        return ftp_website, local_directory, max_depth, refresh_frequency, excluded_extensions
+        return ftp_website, local_directory, max_depth, refresh_frequency, nb_multi, excluded_extensions
     else:
         return 0

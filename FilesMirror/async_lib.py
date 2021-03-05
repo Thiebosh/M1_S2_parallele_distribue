@@ -2,7 +2,6 @@ import asyncio
 import sys
 import contextlib
 import threading
-import time
 from talk_to_ftp import TalkToFTP
 from logger import Logger
 
@@ -64,9 +63,6 @@ def async_worker_launcher(evt_end, ftp_website, queue, lock):
 
 
 def thread_pool(nb_threads, evt_end, ftp_website, queue, lock):
-
-    # control thread who multiplex (1 to n) evts connect & disconnect ?
-
     for _ in range(nb_threads):
         args = (evt_end, ftp_website, queue, lock)
         threading.Thread(target=async_worker_launcher, args=args).start()

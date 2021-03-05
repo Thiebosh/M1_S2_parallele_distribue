@@ -39,19 +39,17 @@ class DirectoryManager:
             self.ftp.create_folder(self.ftp.directory)
         self.ftp.disconnect()
 
-    async def synchronize_directory(self, frequency):
+    async def synchronize_directory(self, frequency, nb_multi):
         event_end = asyncio.Event()
         asyncio.get_running_loop().call_soon(asyncio.ensure_future, async_lib.ainput(event_end))
 
         queue = asyncio.Queue()
         lock = asyncio.Lock()
-
         # event_connect = asyncio.Event()
         # event_disconnect = asyncio.Event()
+        async_lib.thread_pool(nb_multi, event_end, self.ftp_website, queue, lock)
 
         try:
-            async_lib.thread_pool(2, event_end, self.ftp_website, queue, lock)
-
             while True:
                 # init the path explored to an empty list before each synchronization
                 self.paths_explored = []
