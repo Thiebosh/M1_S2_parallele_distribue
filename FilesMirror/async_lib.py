@@ -22,9 +22,16 @@ async def event_wait(evt, timeout):
 
 # thread section
 
-async def async_worker(evt_end, ftp_website, queue_high, queue_low, lock):
+async def stop_loop(_e: asyncio.Event):
+    """The coroutine which raise event for main_work"""
+    _e.set()
+    print("Stop loop")
+
+async def async_worker(id, ftp_website, lock, queue_high, queue_low,
+                       evt_end, evt_done_main, evt_done_workers, frequency, loop):
     ftp = TalkToFTP(ftp_website)
     task = None
+    print("thread ",id)
 
     functions = {"create_folder": ftp.create_folder,
                  "remove_file": ftp.remove_file,
@@ -32,7 +39,12 @@ async def async_worker(evt_end, ftp_website, queue_high, queue_low, lock):
                  "remove_folder": ftp.remove_folder}
 
     while not evt_end.is_set():
+        duration = 1
         try:
+            if evt_done_workers.is_set():
+                duration = frequency # - timestamp diff
+                continue
+
             async with lock:
                 if not queue_high.empty():
                     task = await queue_high.get()
@@ -40,12 +52,13 @@ async def async_worker(evt_end, ftp_website, queue_high, queue_low, lock):
                 elif not queue_low.empty():
                     task = await queue_low.get()
 
-                else: #if main thread event done ?
-                    pass
-                    # set event_done
+                elif evt_done_main.is_set():
+                    print("syn ack")
+                    evt_done_workers.set()
+                    loop.call_soon_threadsafe(stop_loop(evt_done_workers)) # threadsafe needed
+                    evt_done_main.clear()
                     # store timestamp
-                    # sleep longer ?
-                    # continue ?
+                    duration = frequency
 
             if not task:
                 continue
@@ -65,14 +78,9 @@ async def async_worker(evt_end, ftp_website, queue_high, queue_low, lock):
             break
 
         finally:
-            await asyncio.sleep(1)
+            await asyncio.sleep(duration)
 
 
-def async_worker_launcher(evt_end, ftp_website, queue_high, queue_low, lock):
-    asyncio.run(async_worker(evt_end, ftp_website, queue_high, queue_low, lock))
-
-
-def thread_pool(nb_threads, evt_end, ftp_website, queue_high, queue_low, lock):
-    for _ in range(nb_threads):
-        args = (evt_end, ftp_website, queue_high, queue_low, lock)
-        threading.Thread(target=async_worker_launcher, args=args).start()
+def thread_pool(nb_threads, worker_args):
+    for id in range(nb_threads):
+        threading.Thread(target=lambda:asyncio.run(async_worker(id, *worker_args))).start()

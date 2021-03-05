@@ -33,7 +33,17 @@ changelog :
 **Setp1 :**
 - set high and low priority ftp operation queues
 
+**Step2 :**
+- synchronize main thread and workers (3way handshake style)
 
+Step3 :
+- sort files transfert by weigth in auxiliary thread before send them in queue
+
+Setp4 :
+- stop threads at any time if sleeping
+
+Step5 :
+- stop synchronization at any time ?
 
 #### notes
 - décorateur asyncio.coroutine rend fonction synchrone exécutable dans un contexte asynchrone. Mais si la fonction décorée ne fait aucun appel à asyncio, elle est exécutée de façon synchrone.
