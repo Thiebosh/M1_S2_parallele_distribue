@@ -22,7 +22,7 @@ async def event_wait(evt, timeout):
 
 # thread section
 
-async def async_worker(evt_end, ftp_website, queue, lock):
+async def async_worker(evt_end, ftp_website, queue_high, queue_low, lock):
     ftp = TalkToFTP(ftp_website)
     task = None
 
@@ -31,11 +31,21 @@ async def async_worker(evt_end, ftp_website, queue, lock):
                  "file_transfer": ftp.file_transfer,
                  "remove_folder": ftp.remove_folder}
 
-    while not evt_end.is_set(): # true
+    while not evt_end.is_set():
         try:
             async with lock:
-                if not queue.empty():
-                    task = await queue.get()
+                if not queue_high.empty():
+                    task = await queue_high.get()
+
+                elif not queue_low.empty():
+                    task = await queue_low.get()
+
+                else: #if main thread event done ?
+                    pass
+                    # set event_done
+                    # store timestamp
+                    # sleep longer ?
+                    # continue ?
 
             if not task:
                 continue
@@ -58,11 +68,11 @@ async def async_worker(evt_end, ftp_website, queue, lock):
             await asyncio.sleep(1)
 
 
-def async_worker_launcher(evt_end, ftp_website, queue, lock):
-    asyncio.run(async_worker(evt_end, ftp_website, queue, lock))
+def async_worker_launcher(evt_end, ftp_website, queue_high, queue_low, lock):
+    asyncio.run(async_worker(evt_end, ftp_website, queue_high, queue_low, lock))
 
 
-def thread_pool(nb_threads, evt_end, ftp_website, queue, lock):
+def thread_pool(nb_threads, evt_end, ftp_website, queue_high, queue_low, lock):
     for _ in range(nb_threads):
-        args = (evt_end, ftp_website, queue, lock)
+        args = (evt_end, ftp_website, queue_high, queue_low, lock)
         threading.Thread(target=async_worker_launcher, args=args).start()

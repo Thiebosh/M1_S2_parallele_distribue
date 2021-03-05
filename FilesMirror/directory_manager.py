@@ -43,11 +43,10 @@ class DirectoryManager:
         event_end = asyncio.Event()
         asyncio.get_running_loop().call_soon(asyncio.ensure_future, async_lib.ainput(event_end))
 
-        queue = asyncio.Queue()
+        queue_high = asyncio.Queue()
+        queue_low = asyncio.Queue()
         lock = asyncio.Lock()
-        # event_connect = asyncio.Event()
-        # event_disconnect = asyncio.Event()
-        async_lib.thread_pool(nb_multi, event_end, self.ftp_website, queue, lock)
+        async_lib.thread_pool(nb_multi, event_end, self.ftp_website, queue_high, queue_low, lock)
 
         try:
             while True:
@@ -60,19 +59,17 @@ class DirectoryManager:
                 tasks = []
 
                 self.ftp.connect()
-                # event_connect.set()
                 # search for an eventual updates of files in the root directory
-                tasks.append(self.search_updates(self.root_directory, queue, lock))
+                tasks.append(self.search_updates(self.root_directory, queue_high, queue_low, lock))
 
                 # if the length of the files & folders to synchronize != number of path explored
                 # file / folder got removed
                 if len(self.synchronize_dict.keys()) != len(self.paths_explored):
                     # look for any removals of files / directories
-                    tasks.append(self.any_removals(queue, lock))
+                    tasks.append(self.any_removals(queue_high, queue_low, lock))
 
                 await asyncio.gather(*tasks)
 
-                # event_disconnect.set()
                 self.ftp.disconnect()
 
                 # wait before next synchronization
@@ -90,7 +87,7 @@ class DirectoryManager:
             event_end.set() # stop threads
             Logger.log_info("Stop synchronization")
 
-    async def search_updates(self, directory, queue, lock):
+    async def search_updates(self, directory, queue_high, queue_low, lock):
         # scan recursively all files & directories in the root directory
         for path_file, dirs, files in os.walk(directory):
 
@@ -117,16 +114,8 @@ class DirectoryManager:
                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
                             # add this directory to the FTP server
                             async with lock:
-                                await queue.put(["create_folder", (srv_full_path,)])
+                                await queue_high.put(["create_folder", (srv_full_path,)])
                                 # self.ftp.create_folder(srv_full_path)
-
-            # wait the end of operations, start 2nd coroutine here if work
-            while not queue.empty:
-                await asyncio.sleep(0.1)
-            # if not queue.empty():
-            #     print("start join 1")
-            #     await queue.join()
-            #     print("finish join 1")
 
             for file_name in files:
                 file_path = os.path.join(path_file, file_name)
@@ -146,10 +135,10 @@ class DirectoryManager:
                             split_path = file_path.split(self.root_directory)
                             srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                             async with lock:
-                                await queue.put(["remove_file", (srv_full_path,)])
+                                await queue_high.put(["remove_file", (srv_full_path,)])
                                 # self.ftp.remove_file(srv_full_path)
                                 # update this file on the FTP server
-                                await queue.put(["file_transfer", (path_file, srv_full_path, file_name)])
+                                await queue_low.put(["file_transfer", (path_file, srv_full_path, file_name)])
                                 # self.ftp.file_transfer(path_file, srv_full_path, file_name)
 
                     else:
@@ -160,11 +149,11 @@ class DirectoryManager:
                         srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                         # add this file on the FTP server
                         async with lock:
-                            await queue.put(["file_transfer", (path_file, srv_full_path, file_name)])
+                            await queue_low.put(["file_transfer", (path_file, srv_full_path, file_name)])
                             # self.ftp.file_transfer(path_file, srv_full_path, file_name)
         return
 
-    async def any_removals(self, queue, lock):
+    async def any_removals(self, queue_high, queue_low, lock):
         # get the list of the files & folders removed
         path_removed_list = [key for key in self.synchronize_dict.keys() if key not in self.paths_explored]
 
@@ -178,7 +167,7 @@ class DirectoryManager:
                     split_path = removed_path.split(self.root_directory)
                     srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                     async with lock:
-                        await queue.put(["remove_file", (srv_full_path,)])
+                        await queue_high.put(["remove_file", (srv_full_path,)])
                         # self.ftp.remove_file(srv_full_path)
                     self.to_remove_from_dict.append(removed_path)
 
@@ -196,7 +185,7 @@ class DirectoryManager:
                 del self.synchronize_dict[to_remove]
         return
 
-    async def remove_all_in_directory(self, removed_directory, srv_full_path, path_removed_list, queue):
+    async def remove_all_in_directory(self, removed_directory, srv_full_path, path_removed_list, queue_high, queue_low):
         directory_containers = {}
         for path in path_removed_list:
 
@@ -221,25 +210,17 @@ class DirectoryManager:
                 to_delete_ftp = "{0}{1}{2}".format(self.ftp.directory, os.path.sep, to_delete.split(self.root_directory)[1])
                 if isinstance(self.synchronize_dict[to_delete], File):
                     async with lock:
-                        await queue.put(["remove_file", (to_delete_ftp,)])
+                        await queue_high.put(["remove_file", (to_delete_ftp,)])
                         # self.ftp.remove_file(to_delete_ftp)
                     self.to_remove_from_dict.append(to_delete)
                 else:
                     # if it's again a directory, we delete all his containers also
                     await self.remove_all_in_directory(to_delete, to_delete_ftp, path_removed_list, queue)
-        
-        # wait the end of operations
-        while not queue.empty:
-            await asyncio.sleep(0.1)
-        # if not queue.empty():
-        #     print("start join 2")
-        #     await queue.join()
-        #     print("finish join 2")
 
         # once all the containers of the directory got removed
         # we can delete the directory also
         async with lock:
-            await queue.put(["remove_folder", (srv_full_path,)])
+            await queue_low.put(["remove_folder", (srv_full_path,)])
             # self.ftp.remove_folder(srv_full_path)
         self.to_remove_from_dict.append(removed_directory)
 
