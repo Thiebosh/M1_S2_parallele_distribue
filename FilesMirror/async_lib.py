@@ -22,43 +22,54 @@ async def event_wait(evt, timeout):
 
 # thread section
 
-async def stop_loop(_e: asyncio.Event):
-    """The coroutine which raise event for main_work"""
-    _e.set()
-    print("Stop loop")
-
-async def async_worker(id, ftp_website, lock, queue_high, queue_low,
-                       evt_end, evt_done_main, evt_done_workers, frequency, loop):
-    ftp = TalkToFTP(ftp_website)
+async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, duration):
     task = None
-    print("thread ",id)
 
+    async with lock:
+        if not queue_high.empty():
+            task = await queue_high.get()
+
+        elif not queue_low.empty():
+            task = await queue_low.get()
+
+    if not task and evt_done_main.is_set():
+        evt_done_workers.set()
+        evt_done_main.clear()
+        # store timestamp
+        duration = frequency
+
+    return task, duration
+
+async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
+                       evt_end, evt_done_main, evt_done_workers, frequency):
+    ftp = TalkToFTP(ftp_website)
     functions = {"create_folder": ftp.create_folder,
                  "remove_file": ftp.remove_file,
                  "file_transfer": ftp.file_transfer,
                  "remove_folder": ftp.remove_folder}
 
+    core_args = (lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, 1)
+
     while not evt_end.is_set():
-        duration = 1
         try:
             if evt_done_workers.is_set():
                 duration = frequency # - timestamp diff
                 continue
 
-            async with lock:
-                if not queue_high.empty():
-                    task = await queue_high.get()
+            task, duration = asyncio.run_coroutine_threadsafe(synchronous_core(*core_args), main_loop).result()
 
-                elif not queue_low.empty():
-                    task = await queue_low.get()
+            # async with lock:
+            #     if not queue_high.empty():
+            #         task = await queue_high.get()
 
-                elif evt_done_main.is_set():
-                    print("syn ack")
-                    evt_done_workers.set()
-                    loop.call_soon_threadsafe(stop_loop(evt_done_workers)) # threadsafe needed
-                    evt_done_main.clear()
-                    # store timestamp
-                    duration = frequency
+            #     elif not queue_low.empty():
+            #         task = await queue_low.get()
+
+            #     elif evt_done_main.is_set():
+            #         main_loop.call_soon_threadsafe(lambda: evt_done_workers.set())
+            #         evt_done_main.clear()
+            #         # store timestamp
+            #         duration = frequency
 
             if not task:
                 continue
@@ -68,13 +79,13 @@ async def async_worker(id, ftp_website, lock, queue_high, queue_low,
             if task[0] in functions:
                 functions[task[0]](*task[1])
             else:
-                Logger.log_critical(f"thread - Unknow method")
+                Logger.log_critical(f"thread {id} - Unknow method")
 
             ftp.disconnect()
             task = None
 
         except Exception as e:
-            Logger.log_critical(f"thread - {e}")
+            Logger.log_critical(f"thread {id} - {e}")
             break
 
         finally:

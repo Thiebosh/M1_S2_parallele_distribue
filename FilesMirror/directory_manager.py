@@ -49,9 +49,8 @@ class DirectoryManager:
         queue_high = asyncio.Queue()
         queue_low = asyncio.Queue()
         lock = asyncio.Lock()
-        async_lib.thread_pool(nb_multi, (self.ftp_website, lock, queue_high, queue_low,
-                              evt_end, evt_done_main, evt_done_workers, frequency,
-                              asyncio.get_event_loop()))
+        async_lib.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue_high, queue_low,
+                              evt_end, evt_done_main, evt_done_workers, frequency))
 
         try:
             duration = 0

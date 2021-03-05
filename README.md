@@ -67,6 +67,10 @@ Step5 :
 
 - aioftp : port 21 par défaut
 
+- asyncio event doit être déclaré et setté dans la même async loop mais il peut être lu depuis d'autres loops. Attention : il s'agit d'une async loop donc pour une application immédiate, doit passer par thread (-> call_soon_threadsafe)
+
+- pour esquiver pb de concurrences avec async lock, run tout dans la main loop (appel de fonction, retourne un future object contenant les résultats)
+
 
 #### todo
 - retirer sleep de début : si jobs, pause au milieu du premier et second pourra prendre le relai. Attention : asynchrone = une seule file d'exécution remplie au mieux, donc met en sommeil fonctions qui peuvent l'être pour éveiller fonctions qui doivent l'être
