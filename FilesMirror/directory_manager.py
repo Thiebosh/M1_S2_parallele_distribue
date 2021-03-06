@@ -82,13 +82,15 @@ class DirectoryManager:
                 self.ftp.disconnect()
 
                 evt_done_main.set()
-                await evt_done_workers.wait()
-                print(".")
-        
-        except KeyboardInterrupt as e:
-            Logger.log_warning("Unnecessary keyboard interrupt : simply press enter")
+                try:
+                    await evt_done_workers.wait()
+                except Exception as e: # future are broken by keyboard interrupt
+                    evt_end.set() # keyboard interrupt signal to thread
+                    break
 
-        except Exception as e:
+                print(".")
+
+        except Exception as e: # just in case of
             Logger.log_critical(e)
 
         finally:

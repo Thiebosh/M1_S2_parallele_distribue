@@ -14,9 +14,15 @@ async def ainput(evt_end):
 async def event_wait(evt, timeout):
     if evt.is_set():
         return True
-    # suppress TimeoutError because we'll return False in case of timeout
-    with contextlib.suppress(asyncio.TimeoutError):
-        await asyncio.wait_for(evt.wait(), timeout)
+
+    try:
+        # suppress TimeoutError because we'll return False in case of timeout
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(evt.wait(), timeout)
+
+    except Exception: # future are broken by keyboard interrupt
+        evt.set() # keyboard interrupt
+
     return evt.is_set()
 
 
@@ -40,8 +46,11 @@ async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_
 
     return task, duration
 
+
 async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
                        evt_end, evt_done_main, evt_done_workers, frequency):
+    Logger.log_info(f"thread {id} - Start")
+
     ftp = TalkToFTP(ftp_website)
     functions = {"create_folder": ftp.create_folder,
                  "remove_file": ftp.remove_file,
@@ -63,22 +72,17 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
             if not task:
                 continue
 
-            try:
-                ftp.connect()
+            ftp.connect()
 
-                if task[0] in functions:
-                    functions[task[0]](*task[1])
-                else:
-                    Logger.log_critical(f"thread {id} - Unknow method")
+            if task[0] in functions:
+                functions[task[0]](*task[1])
+            else:
+                Logger.log_critical(f"thread {id} - Unknow method")
 
-                ftp.disconnect()
-                task = None
+            ftp.disconnect()
+            task = None
 
-            except Exception as e:
-                Logger.log_critical(f"thread {id} - {e}")
-                break
-
-    except Exception as e:
+    except Exception as e: # just in case of
         Logger.log_critical(f"thread {id} - {e}")
 
     finally:
