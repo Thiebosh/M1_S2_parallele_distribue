@@ -46,13 +46,13 @@ Keep algorithm (mainly) unchanged:
 
 change algorithm: 
 - Replace jointures by high (folder creation, file deletion) and low (file transfer, folder deletion) priority executions,
-- File transfers executions are gathered and sorted by weight before transmit tasks to workers.
+- File transfers executions are gathered and sorted by weight before transmit tasks to workers. **todo**
 
 Improve parallelization meccanisms:
 - Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
 - Improve execution stop : workers stop simultaneously rather than after their sleeping time
 - Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
-- Add time difference calculation to synchronize late workers with others,
+- Add time difference calculation to synchronize late workers with others, **todo**
 
 **Setp1 :**
 - set high and low priority ftp operation queues
