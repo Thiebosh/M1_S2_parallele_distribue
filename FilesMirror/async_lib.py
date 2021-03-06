@@ -6,6 +6,9 @@ from talk_to_ftp import TalkToFTP
 from logger import Logger
 
 
+LOG_INFO_THREADS = False
+
+
 async def ainput(evt_end):
     await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
     evt_end.set()
@@ -49,7 +52,8 @@ async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_
 
 async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
                        evt_end, evt_done_main, evt_done_workers, frequency):
-    Logger.log_info(f"thread {id} - Start")
+    if LOG_INFO_THREADS:
+        Logger.log_info(f"thread {id} - Start")
 
     ftp = TalkToFTP(ftp_website)
     functions = {"create_folder": ftp.create_folder,
@@ -90,6 +94,7 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
             evt_done_main.clear()
             main_loop.call_soon_threadsafe(lambda: evt_done_workers.set()) # run on main thread's loop
 
+    if LOG_INFO_THREADS:
         Logger.log_info(f"thread {id} - Stop")
 
 
