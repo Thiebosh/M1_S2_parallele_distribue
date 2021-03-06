@@ -6,6 +6,20 @@ changelog :
 
 **Idea :** apply parallelization principles to ftp operations
 
+Apply parallelization meccanisms:
+- Send tasks to thread pool with an asyncio queue (see next point)
+- Pass synchronize_directory, search_updates and any_removals asynchrones :
+    - while one is awaiting, the other (if called) can carry on
+    - sleep time does not cause unnecessary CPU load
+
+Keep algorithm (mainly) unchanged:
+- Only modification : call any_removals only if "the length of the files & folders to synchronize != number of path explored"
+- Synchronize executions with queue jointures at critical points : 
+    - from folder creation to file transfer 
+    - from file deletion to folder deletion
+- Execute tasks in their detection order (only one queue)
+
+
 **Step1 :**
 - synchronize_directory passed async :
     - it await a gather of search_updates and, under condition, any_removals coroutines. Problem here is that without await into coroutine, gather works synchronously
@@ -30,6 +44,16 @@ changelog :
 
 **Idea :** improve parallelization performances with algorithm
 
+change algorithm: 
+- Replace jointures by high (folder creation, file deletion) and low (file transfer, folder deletion) priority executions,
+- File transfers executions are gathered and sorted by weight before transmit tasks to workers.
+
+Improve parallelization meccanisms:
+- Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
+- Improve execution stop : workers stop simultaneously rather than after their sleeping time
+- Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
+- Add time difference calculation to synchronize late workers with others,
+
 **Setp1 :**
 - set high and low priority ftp operation queues
 
@@ -45,6 +69,11 @@ Step4 :
 
 Step4 :
 - stop synchronization at any time ? => already done for workers, usefull for scanner?
+
+
+V3
+replace threads by process "just to see"
+
 
 #### notes
 - décorateur asyncio.coroutine rend fonction synchrone exécutable dans un contexte asynchrone. Mais si la fonction décorée ne fait aucun appel à asyncio, elle est exécutée de façon synchrone.
