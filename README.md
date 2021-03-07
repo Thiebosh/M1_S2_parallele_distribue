@@ -63,6 +63,7 @@ Improve parallelization meccanisms:
 **Step2 :**
 - synchronize main thread and workers (3way handshake style)
 - stop threads at any time if sleeping
+- wait for closure of all asyncio running loop threads before finish
 
 **Step3 :**
 - temporal synchronization : time diff between thread syn ack and thread ack, moduled by frequency (in case of greater than it), and then, deduced from frequency
@@ -72,8 +73,6 @@ Step4 :
 
 Step5 :
 - stop synchronization at any time ? => already done for workers, usefull for scanner?
-
-todo : rework close condition. await asyncio.sleep(0.2) at the end of synchronize_directory won't be sufficient in case of heavy work which will throw one or more of the workers out of thoses 0.2s of "danger closing zone"
 
 V3
 replace threads by process "just to see"

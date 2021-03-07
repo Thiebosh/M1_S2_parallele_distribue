@@ -7,6 +7,7 @@ from talk_to_ftp import TalkToFTP
 import asyncio
 import async_lib
 from logger import Logger
+import multiprocessing
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -49,8 +50,10 @@ class DirectoryManager:
         queue_high = asyncio.Queue()
         queue_low = asyncio.Queue()
         lock = asyncio.Lock()
+        shared_threads_working = multiprocessing.Value("i", nb_multi, lock=False) # share var across all (threads in) process
         async_lib.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue_high, queue_low,
-                              evt_end, evt_done_main, evt_done_workers, frequency))
+                              evt_end, shared_threads_working,
+                              evt_done_main, evt_done_workers, frequency))
 
         try:
             duration = 0
@@ -94,7 +97,8 @@ class DirectoryManager:
             Logger.log_critical(e)
 
         finally:
-            await asyncio.sleep(0.2) # attendre fin threads
+            while shared_threads_working.value > 0: # attendre fin threads
+                await asyncio.sleep(0.1)
             Logger.log_info("Stop synchronization")
 
     async def search_updates(self, directory, lock, queue_high, queue_low):
