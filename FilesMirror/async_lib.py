@@ -4,6 +4,8 @@ import contextlib
 import threading
 from talk_to_ftp import TalkToFTP
 from logger import Logger
+import time
+import multiprocessing
 
 
 LOG_INFO_THREADS = False
@@ -31,7 +33,7 @@ async def event_wait(evt, timeout):
 
 # thread section
 
-async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, duration):
+async def synchronous_core(id, lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, duration, shared_time_ref):
     task = None
 
     async with lock:
@@ -42,16 +44,16 @@ async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_
             task = await queue_low.get()
 
     if not task and evt_done_main.is_set():
+        shared_time_ref.value = time.time()
         evt_done_main.clear()
         evt_done_workers.set()
-        # store timestamp
         duration = frequency
 
     return task, duration
 
 
 async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
-                       evt_end, evt_done_main, evt_done_workers, frequency):
+                       evt_end, evt_done_main, evt_done_workers, frequency, shared_time_ref):
     if LOG_INFO_THREADS:
         Logger.log_info(f"thread {id} - Start")
 
@@ -61,14 +63,14 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
                  "file_transfer": ftp.file_transfer,
                  "remove_folder": ftp.remove_folder}
 
-    core_args = (lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, 1)
+    core_args = (id, lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, 1, shared_time_ref)
 
     try:
         duration = 0
         while not asyncio.run_coroutine_threadsafe(event_wait(evt_end, duration), main_loop).result(): # run on main thread's loop
 
             if evt_done_workers.is_set():
-                duration = frequency # - timestamp diff
+                duration = frequency - ((time.time() - shared_time_ref.value) % frequency)
                 continue
 
             task, duration = asyncio.run_coroutine_threadsafe(synchronous_core(*core_args), main_loop).result() # run on main thread's loop
@@ -99,5 +101,6 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
 
 
 def thread_pool(nb_threads, worker_args):
+    shared_time_ref = multiprocessing.Value("d", time.time(), lock=False) # share var across all (threads in) process
     for id in range(nb_threads):
-        threading.Thread(target=lambda:asyncio.run(async_worker(id, *worker_args))).start()
+        threading.Thread(target=lambda:asyncio.run(async_worker(id, *worker_args, shared_time_ref))).start()

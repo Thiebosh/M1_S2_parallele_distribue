@@ -13,7 +13,9 @@ Apply parallelization meccanisms:
     - sleep time does not cause unnecessary CPU load
 
 Keep algorithm (mainly) unchanged:
-- Only modification : call any_removals only if "the length of the files & folders to synchronize != number of path explored"
+- Only modifications : 
+    - call any_removals only if "the length of the files & folders to synchronize != number of path explored"
+    - add controlled closing meccanism
 - Synchronize executions with queue jointures at critical points : 
     - from folder creation to file transfer 
     - from file deletion to folder deletion
@@ -52,6 +54,7 @@ Improve parallelization meccanisms:
 - Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
 - Improve execution stop : workers stop simultaneously rather than after their sleeping time
 - Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
+- Improve try catch bocks : intercept what is needed, where is needed, and set events as needed
 - Add time difference calculation to synchronize late workers with others, **todo**
 
 **Setp1 :**
@@ -61,15 +64,16 @@ Improve parallelization meccanisms:
 - synchronize main thread and workers (3way handshake style)
 - stop threads at any time if sleeping
 
-Step3 :
-- temporal synchronization (time diff between thread syn ack and thread ack deduced from frequency)
+**Step3 :**
+- temporal synchronization : time diff between thread syn ack and thread ack, moduled by frequency (in case of greater than it), and then, deduced from frequency
 
 Step4 :
 - sort files transfert by weigth in auxiliary thread before send them in queue
 
-Step4 :
+Step5 :
 - stop synchronization at any time ? => already done for workers, usefull for scanner?
 
+todo : rework close condition. await asyncio.sleep(0.2) at the end of synchronize_directory won't be sufficient in case of heavy work which will throw one or more of the workers out of thoses 0.2s of "danger closing zone"
 
 V3
 replace threads by process "just to see"
