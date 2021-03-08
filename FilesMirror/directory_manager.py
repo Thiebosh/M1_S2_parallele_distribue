@@ -11,6 +11,7 @@ import multiprocessing
 from ftplib import error_perm
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+WATERFALL_TIME = 0.05
 
 
 class DirectoryManager:
@@ -132,7 +133,7 @@ class DirectoryManager:
                                 self.ftp.get_folder_content(directory_split) # throw exception if folder doesn't exist
                                 break
                             except error_perm: # "550 directory not found."
-                                await asyncio.sleep(0.1)
+                                await asyncio.sleep(WATERFALL_TIME)
 
                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
                             # add this directory to the FTP server
@@ -241,7 +242,7 @@ class DirectoryManager:
         # once all the containers of the directory got removed
         # we can delete the directory also
         while self.ftp.get_folder_content(srv_full_path):
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(WATERFALL_TIME)
 
         async with lock:
             await queue_low.put(["remove_folder", (srv_full_path,)])
