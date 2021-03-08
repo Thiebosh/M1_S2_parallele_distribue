@@ -37,7 +37,7 @@ class TalkToFTP:
 
     def remove_file(self, file):
         self.ftp.delete(file)
-        Logger.log_info("File removed : %s" + file)
+        Logger.log_info("File removed : {0}".format(file))
 
     def get_folder_content(self, path):
         init_list = self.ftp.nlst(path)
