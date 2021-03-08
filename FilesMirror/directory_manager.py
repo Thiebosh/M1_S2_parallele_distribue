@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 from Directory import Directory
 from File import File
 from talk_to_ftp import TalkToFTP
@@ -139,7 +138,6 @@ class DirectoryManager:
                             # add this directory to the FTP server
                             async with lock:
                                 await queue_high.put(["create_folder", (srv_full_path,)])
-                                # self.ftp.create_folder(srv_full_path)
 
             for file_name in files:
                 file_path = os.path.join(path_file, file_name)
@@ -160,10 +158,8 @@ class DirectoryManager:
                             srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                             async with lock:
                                 await queue_high.put(["remove_file", (srv_full_path,)])
-                                # self.ftp.remove_file(srv_full_path)
                                 # update this file on the FTP server
                                 await queue_low.put(["file_transfer", (path_file, srv_full_path, file_name)])
-                                # self.ftp.file_transfer(path_file, srv_full_path, file_name)
 
                     else:
 
@@ -174,7 +170,6 @@ class DirectoryManager:
                         # add this file on the FTP server
                         async with lock:
                             await queue_low.put(["file_transfer", (path_file, srv_full_path, file_name)])
-                            # self.ftp.file_transfer(path_file, srv_full_path, file_name)
 
     async def any_removals(self, lock, queue_high, queue_low):
         # get the list of the files & folders removed
@@ -191,7 +186,6 @@ class DirectoryManager:
                     srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                     async with lock:
                         await queue_high.put(["remove_file", (srv_full_path,)])
-                        # self.ftp.remove_file(srv_full_path)
                     self.to_remove_from_dict.append(removed_path)
 
                 elif isinstance(self.synchronize_dict[removed_path], Directory):
@@ -233,7 +227,6 @@ class DirectoryManager:
                 if isinstance(self.synchronize_dict[to_delete], File):
                     async with lock:
                         await queue_high.put(["remove_file", (to_delete_ftp,)])
-                        # self.ftp.remove_file(to_delete_ftp)
                     self.to_remove_from_dict.append(to_delete)
                 else:
                     # if it's again a directory, we delete all his containers also
@@ -246,7 +239,6 @@ class DirectoryManager:
 
         async with lock:
             await queue_low.put(["remove_folder", (srv_full_path,)])
-            # self.ftp.remove_folder(srv_full_path)
         self.to_remove_from_dict.append(removed_directory)
 
     # subtract current number of os separator to the number of os separator for the root directory
