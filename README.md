@@ -6,13 +6,6 @@ changelog :
 
 **Idea :** apply parallelization principles to ftp operations
 
-Apply parallelization meccanisms:
-- Send tasks to thread pool with an asyncio queue (see next point)
-- Pass synchronize_directory, search_updates and any_removals asynchrones :
-    - while one is awaiting, the other (if called) can carry on
-    - sleep time does not cause unnecessary CPU load
-- cascading folders: waits for parent creation or deletion of all items
-
 Keep algorithm (mainly) unchanged:
 - Only modifications : 
     - call any_removals only if "the length of the files & folders to synchronize != number of path explored"
@@ -21,6 +14,19 @@ Keep algorithm (mainly) unchanged:
     - from folder creation to file transfer 
     - from file deletion to folder deletion
 - Execute tasks in their detection order (only one queue)
+
+
+Apply parallelization meccanisms:
+- Send tasks to thread pool with an asyncio queue (see next point)
+- Pass synchronize_directory, search_updates and any_removals asynchrones :
+    - while one is awaiting, the other (if called) can carry on
+    - sleep time does not cause unnecessary CPU load
+- cascading folders: waits for parent creation or deletion of all items
+- Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
+- Add execution stop : workers stop simultaneously rather than after their sleeping time
+- Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
+- Add try catch bocks : intercept what is needed, where is needed, and set events as needed,
+- Add time difference calculation to synchronize late workers with others
 
 
 **Step1 :**
@@ -49,14 +55,7 @@ Keep algorithm (mainly) unchanged:
 
 change algorithm: 
 - Replace jointures by high (folder creation, file deletion) and low (file transfer, folder deletion) priority executions,
-- File transfers executions are gathered and sorted by weight before transmit tasks to workers. **todo**
 
-Improve parallelization meccanisms:
-- Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
-- Improve execution stop : workers stop simultaneously rather than after their sleeping time
-- Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
-- Improve try catch bocks : intercept what is needed, where is needed, and set events as needed
-- Add time difference calculation to synchronize late workers with others, **todo**
 
 **Setp1 :**
 - set high and low priority ftp operation queues
@@ -69,14 +68,19 @@ Improve parallelization meccanisms:
 **Step3 :**
 - temporal synchronization : time diff between thread syn ack and thread ack, moduled by frequency (in case of greater than it), and then, deduced from frequency
 
-Step4 :
+
+#### V3
+
+change algorithm: 
+- File transfers executions are gathered and sorted by weight before transmit tasks to workers. **todo**
+
+**Idea :** improve parallelization performances with algorithm
+
+Step1 :
 - sort files transfert by weigth in auxiliary thread before send them in queue
 
-Step5 :
-- stop synchronization at any time ? => already done for workers, usefull for scanner?
 
-V3
-replace threads by process "just to see"
+V4, replace threads by process "just to see" ?
 
 
 #### notes
