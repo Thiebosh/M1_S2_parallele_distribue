@@ -9,7 +9,7 @@ import multiprocessing
 from ftplib import error_perm
 
 
-async def ainput(evt_end):
+async def async_input(evt_end):
     await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
     Logger.log_info(f"Get stop signal, wait end of running tasks")
     evt_end.set()
@@ -104,7 +104,7 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
             main_loop.call_soon_threadsafe(lambda: evt_done_workers.set()) # run on main thread's loop
         shared_threads_working.value -= 1
 
-    Logger.log_info(f"thread {id} - Stop")
+    Logger.log_info(f"thread {id} - Stop ({threading.active_count()-2} left)") # main thread, async_input thread
 
 
 def thread_pool(nb_threads, worker_args):

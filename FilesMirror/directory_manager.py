@@ -43,7 +43,7 @@ class DirectoryManager:
 
     async def synchronize_directory(self, frequency, nb_multi):
         evt_end = asyncio.Event()
-        asyncio.get_running_loop().call_soon(asyncio.ensure_future, async_lib.ainput(evt_end))
+        asyncio.get_running_loop().call_soon(asyncio.ensure_future, async_lib.async_input(evt_end))
 
         evt_done_main = asyncio.Event()
         evt_done_workers = asyncio.Event()
