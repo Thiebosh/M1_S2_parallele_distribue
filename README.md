@@ -11,6 +11,7 @@ Apply parallelization meccanisms:
 - Pass synchronize_directory, search_updates and any_removals asynchrones :
     - while one is awaiting, the other (if called) can carry on
     - sleep time does not cause unnecessary CPU load
+- cascading folders: waits for parent creation or deletion of all items
 
 Keep algorithm (mainly) unchanged:
 - Only modifications : 

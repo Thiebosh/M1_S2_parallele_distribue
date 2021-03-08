@@ -13,7 +13,7 @@ LOG_INFO_THREADS = False
 
 async def ainput(evt_end):
     await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
-    Logger.log_info(f"Get exctionction signal, wait for running tasks to finish")
+    Logger.log_info(f"Get stop signal, wait end of running tasks")
     evt_end.set()
 
 
