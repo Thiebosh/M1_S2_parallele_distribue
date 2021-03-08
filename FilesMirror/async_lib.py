@@ -6,9 +6,7 @@ from talk_to_ftp import TalkToFTP
 from logger import Logger
 import time
 import multiprocessing
-
-
-LOG_INFO_THREADS = False
+from ftplib import error_perm
 
 
 async def ainput(evt_end):
@@ -53,12 +51,14 @@ async def synchronous_core(id, lock, queue_high, queue_low, evt_done_main, evt_d
     return task, duration
 
 
+async def synchronous_enqueue(lock, queue, task):
+    async with lock:
+        await queue.put(task)
+
+
 async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
                        evt_end, shared_threads_working,
                        evt_done_main, evt_done_workers, frequency, shared_time_ref):
-    if LOG_INFO_THREADS:
-        Logger.log_info(f"thread {id} - Start")
-
     ftp = TalkToFTP(ftp_website)
     functions = {"create_folder": ftp.create_folder,
                  "remove_file": ftp.remove_file,
@@ -83,7 +83,12 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
             ftp.connect()
 
             if task[0] in functions:
-                functions[task[0]](*task[1])
+                try:
+                    functions[task[0]](*task[1])
+                except error_perm: # "425 Can't open data connection for transfer of '...'"
+                    if task[0] != "create_folder" and error_perm[:3] != "550": # "550 Directory already exists"
+                        asyncio.run_coroutine_threadsafe(synchronous_enqueue(lock, queue_low, task), main_loop) # retry later
+
             else:
                 Logger.log_critical(f"thread {id} - Unknow method")
 
@@ -99,8 +104,7 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
             main_loop.call_soon_threadsafe(lambda: evt_done_workers.set()) # run on main thread's loop
         shared_threads_working.value -= 1
 
-    if LOG_INFO_THREADS:
-        Logger.log_info(f"thread {id} - Stop")
+    Logger.log_info(f"thread {id} - Stop")
 
 
 def thread_pool(nb_threads, worker_args):
