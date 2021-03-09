@@ -4,6 +4,7 @@ import time
 from Directory import Directory
 from File import File
 from talk_to_ftp import TalkToFTP
+from ftplib import error_perm
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -80,7 +81,10 @@ class DirectoryManager:
                         directory_split = srv_full_path.rsplit(os.path.sep,1)[0]
                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
                             # add this directory to the FTP server
-                            self.ftp.create_folder(srv_full_path)
+                            try:
+                                self.ftp.create_folder(srv_full_path)
+                            except error_perm:
+                                pass
 
             for file_name in files:
                 file_path = os.path.join(path_file, file_name)
@@ -110,7 +114,10 @@ class DirectoryManager:
                         split_path = file_path.split(self.root_directory)
                         srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                         # add this file on the FTP server
-                        self.ftp.file_transfer(path_file, srv_full_path, file_name)
+                        try:
+                            self.ftp.file_transfer(path_file, srv_full_path, file_name)
+                        except error_perm:
+                            pass # retry?
 
     def any_removals(self):
         # if the length of the files & folders to synchronize == number of path explored
