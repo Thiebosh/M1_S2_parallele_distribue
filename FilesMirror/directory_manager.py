@@ -43,7 +43,7 @@ class DirectoryManager:
 
     async def synchronize_directory(self, frequency, nb_multi):
         evt_end = asyncio.Event()
-        asyncio.get_running_loop().call_soon(asyncio.ensure_future, async_lib.async_input(evt_end))
+        asyncio.get_running_loop().call_soon(asyncio.ensure_future, multiprogramming.async_input(evt_end))
 
         evt_done_main = asyncio.Event()
         evt_done_workers = asyncio.Event()
@@ -52,13 +52,13 @@ class DirectoryManager:
         queue_low = asyncio.Queue()
         lock = asyncio.Lock()
         shared_threads_working = multiprocessing.Value("i", nb_multi, lock=False) # share var across all (threads in) process
-        async_lib.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue_high, queue_low,
+        multiprogramming.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue_high, queue_low,
                               evt_end, shared_threads_working,
                               evt_done_main, evt_done_workers, frequency))
 
         try:
             duration = 0
-            while not await async_lib.event_wait(evt_end, duration):
+            while not await multiprogramming.event_wait(evt_end, duration):
                 duration = frequency
 
                 evt_done_workers.clear()
