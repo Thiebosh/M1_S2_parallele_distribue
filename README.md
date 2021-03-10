@@ -2,6 +2,12 @@
 
 changelog :
 
+#### V0
+securize execution:
+- already sent folders are excepted
+- file transfer send error are excepted
+
+
 #### V1
 
 **Idea :** apply parallelization principles to ftp operations
@@ -25,7 +31,7 @@ Apply parallelization meccanisms:
 - Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
 - Add execution stop : workers stop simultaneously rather than after their sleeping time
 - Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
-- Add try catch bocks : intercept what is needed, where is needed, and set events as needed,
+- Add try catch bocks : intercept keyboard interrupt where is needed, and set events as needed for provoke ending,
 - Add time difference calculation to synchronize late workers with others
 
 
