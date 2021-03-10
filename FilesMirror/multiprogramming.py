@@ -19,6 +19,9 @@ async def event_wait(evt, timeout):
     if evt.is_set():
         return True
 
+    if not timeout:
+        return evt.is_set()
+
     try:
         # suppress TimeoutError because we'll return False in case of timeout
         with contextlib.suppress(asyncio.TimeoutError):
