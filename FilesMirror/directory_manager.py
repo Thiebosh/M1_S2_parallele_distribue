@@ -51,10 +51,11 @@ class DirectoryManager:
         queue_high = asyncio.Queue()
         queue_low = asyncio.Queue()
         lock = asyncio.Lock()
-        shared_threads_working = multiprocessing.Value("i", nb_multi, lock=False) # share var across all (threads in) process
+        shared_threads_working = multiprocessing.Value("i", nb_multi,
+                                                       lock=False)  # share var across all (threads in) process
         multiprogramming.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue_high, queue_low,
-                              evt_end, shared_threads_working,
-                              evt_done_main, evt_done_workers, frequency))
+                                                evt_end, shared_threads_working,
+                                                evt_done_main, evt_done_workers, frequency))
 
         try:
             duration = 0
@@ -88,21 +89,23 @@ class DirectoryManager:
                 evt_done_main.set()
                 try:
                     await evt_done_workers.wait()
-                except Exception as e: # future are broken by keyboard interrupt
-                    evt_end.set() # keyboard interrupt signal to thread
+                except Exception as e:  # future are broken by keyboard interrupt
+                    evt_end.set()  # keyboard interrupt signal to thread
                     break
 
                 print(".")
 
-        except Exception as e: # just in case of
+        except Exception as e:  # just in case of
             Logger.log_critical(e)
 
         finally:
-            while shared_threads_working.value > 0: # attendre fin threads
+            while shared_threads_working.value > 0:  # attendre fin threads
                 await asyncio.sleep(0.1)
 
     async def search_updates(self, directory, lock, queue_high, queue_low):
         # scan recursively all files & directories in the root directory
+
+        sorted_tasks = []
         for path_file, dirs, files in os.walk(directory):
 
             for dir_name in dirs:
@@ -124,14 +127,14 @@ class DirectoryManager:
                         # create it on FTP server
                         split_path = folder_path.split(self.root_directory)
                         srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
-                        directory_split = srv_full_path.rsplit(os.path.sep,1)[0]
+                        directory_split = srv_full_path.rsplit(os.path.sep, 1)[0]
 
                         # check if parent's folder is already online
                         while True:
                             try:
-                                self.ftp.get_folder_content(directory_split) # throw exception if folder doesn't exist
+                                self.ftp.get_folder_content(directory_split)  # throw exception if folder doesn't exist
                                 break
-                            except error_perm: # "550 directory not found."
+                            except error_perm:  # "550 directory not found."
                                 await asyncio.sleep(WATERFALL_TIME)
 
                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
@@ -156,20 +159,32 @@ class DirectoryManager:
                             # file get updates
                             split_path = file_path.split(self.root_directory)
                             srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
+                            Logger.log_info("Updated")
                             async with lock:
                                 await queue_high.put(["remove_file", (srv_full_path,)])
                                 # update this file on the FTP server
-                                await queue_low.put(["file_transfer", (path_file, srv_full_path, file_name)])
+                                file_size = os.stat(file_path).st_size
+                                sorted_tasks.append((file_size, ["file_transfer", (path_file, srv_full_path, file_name)]))
 
                     else:
-
                         # file get created
                         self.synchronize_dict[file_path] = File(file_path)
                         split_path = file_path.split(self.root_directory)
                         srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
+                        Logger.log_info("Created")
                         # add this file on the FTP server
-                        async with lock:
-                            await queue_low.put(["file_transfer", (path_file, srv_full_path, file_name)])
+                        file_size = os.stat(file_path).st_size
+                        sorted_tasks.append((file_size, ["file_transfer", (path_file, srv_full_path, file_name)], file_path))
+
+        # Sort task in descending order of size
+        sorted_tasks = sorted(sorted_tasks, key=lambda x: x[0], reverse=True)
+        print(len(sorted_tasks))
+        for task in sorted_tasks:
+
+            async with lock:
+                await queue_low.put(task[1])
+                print(queue_low.qsize())
+            sorted_tasks.remove(task)
 
     async def any_removals(self, lock, queue_high, queue_low):
         # get the list of the files & folders removed
@@ -221,7 +236,7 @@ class DirectoryManager:
         sorted_containers = sorted(directory_containers.values())
 
         # we iterate starting from the innermost file
-        for i in range(len(sorted_containers)-1, -1, -1):
+        for i in range(len(sorted_containers) - 1, -1, -1):
             for to_delete in sorted_containers[i]:
                 to_delete_ftp = "{0}{1}{2}".format(self.ftp.directory, os.path.sep, to_delete.split(self.root_directory)[1])
                 if isinstance(self.synchronize_dict[to_delete], File):
