@@ -4,9 +4,6 @@ import asyncio
 from logger import Logger
 
 
-PYTHONASYNCIODEBUG = 1
-
-
 if __name__ == "__main__":
     # get parameters from command line
     ftp_website, local_directory, max_depth, refresh_frequency, nb_multi, excluded_extensions = get_user_parameters()
