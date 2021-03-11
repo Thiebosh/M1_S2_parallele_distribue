@@ -44,7 +44,7 @@ class DirectoryManager:
 
     async def synchronize_directory(self, frequency, nb_multi):
         evt_end = asyncio.Event()
-        asyncio.get_running_loop().call_soon(asyncio.ensure_future, multiprogramming.async_input(evt_end))
+        asyncio.get_event_loop().call_soon(asyncio.ensure_future, multiprogramming.async_input(evt_end))
 
         is_multi = nb_multi > THREAD_THRESHOLD
 

@@ -1,5 +1,7 @@
 # M1_S2_parallele_distribue
 
+Python compatibility : 3.6, 3.7, 3.8, 3.9
+
 changelog :
 
 #### V0
