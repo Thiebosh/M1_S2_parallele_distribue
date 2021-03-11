@@ -77,17 +77,28 @@ change algorithm:
 
 #### V3
 
-change algorithm: 
-- File transfers executions are gathered and sorted by weight before transmit tasks to workers. **todo**
-
 **Idea :** improve parallelization performances with algorithm
 
-Step1 :
-- sort files transfert by weigth in auxiliary thread before send them in queue
+change algorithm: 
+- File transfers executions are gathered and sorted by weight before transmit tasks to workers.
 
 
-V4, replace threads by process "just to see" ?
+**Step1 :**
+- sort files transfert by weigth before send them in queue
 
+
+#### V4
+
+**Idea :** improve performances with test results
+
+change algorithm: 
+- Use serialized for removals
+- Use parallelized for search updates if enough threads
+
+
+#### futures versions
+- test with process ? probably heavier so worst
+- test with threading.lock and threading.queue ? maybe lighter (no await, no run on main loop)
 
 #### notes
 - décorateur asyncio.coroutine rend fonction synchrone exécutable dans un contexte asynchrone. Mais si la fonction décorée ne fait aucun appel à asyncio, elle est exécutée de façon synchrone.
