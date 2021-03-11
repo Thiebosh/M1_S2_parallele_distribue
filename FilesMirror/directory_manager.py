@@ -81,7 +81,7 @@ class DirectoryManager:
                 # file / folder got removed
                 if len(self.synchronize_dict.keys()) != len(self.paths_explored):
                     # look for any removals of files / directories
-                    tasks.append(self.any_removals(lock, queue_high, queue_low))
+                    tasks.append(self.any_removals())
 
                 await asyncio.gather(*tasks)
 
@@ -189,7 +189,12 @@ class DirectoryManager:
             for task in sorted(sorted_tasks, key=lambda x: x[0], reverse=True):
                 await queue_low.put(task[1])
 
-    async def any_removals(self, lock, queue_high, queue_low):
+    async def any_removals(self):
+        # if the length of the files & folders to synchronize == number of path explored
+        # no file / folder got removed
+        if len(self.synchronize_dict.keys()) == len(self.paths_explored):
+            return
+
         # get the list of the files & folders removed
         path_removed_list = [key for key in self.synchronize_dict.keys() if key not in self.paths_explored]
 
@@ -202,8 +207,7 @@ class DirectoryManager:
                 if isinstance(self.synchronize_dict[removed_path], File):
                     split_path = removed_path.split(self.root_directory)
                     srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
-                    async with lock:
-                        await queue_high.put(["remove_file", (srv_full_path,)])
+                    self.ftp.remove_file(srv_full_path)
                     self.to_remove_from_dict.append(removed_path)
 
                 elif isinstance(self.synchronize_dict[removed_path], Directory):
@@ -211,15 +215,16 @@ class DirectoryManager:
                     srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
                     self.to_remove_from_dict.append(removed_path)
                     # if it's a directory, we need to delete all the files and directories he contains
-                    await self.remove_all_in_directory(removed_path, srv_full_path, path_removed_list, lock, queue_high, queue_low)
+                    self.remove_all_in_directory(removed_path, srv_full_path, path_removed_list)
 
         # all the files / folders deleted in the local directory need to be deleted
         # from the dictionary use to synchronize
         for to_remove in self.to_remove_from_dict:
             if to_remove in self.synchronize_dict.keys():
                 del self.synchronize_dict[to_remove]
+        await asyncio.sleep(WATERFALL_TIME)
 
-    async def remove_all_in_directory(self, removed_directory, srv_full_path, path_removed_list, lock, queue_high, queue_low):
+    def remove_all_in_directory(self, removed_directory, srv_full_path, path_removed_list):
         directory_containers = {}
         for path in path_removed_list:
 
@@ -237,27 +242,6 @@ class DirectoryManager:
 
         # sort the path depending on the file depth
         sorted_containers = sorted(directory_containers.values())
-
-        # we iterate starting from the innermost file
-        for i in range(len(sorted_containers) - 1, -1, -1):
-            for to_delete in sorted_containers[i]:
-                to_delete_ftp = "{0}{1}{2}".format(self.ftp.directory, os.path.sep, to_delete.split(self.root_directory)[1])
-                if isinstance(self.synchronize_dict[to_delete], File):
-                    async with lock:
-                        await queue_high.put(["remove_file", (to_delete_ftp,)])
-                    self.to_remove_from_dict.append(to_delete)
-                else:
-                    # if it's again a directory, we delete all his containers also
-                    await self.remove_all_in_directory(to_delete, to_delete_ftp, path_removed_list, lock, queue_high, queue_low)
-
-        # once all the containers of the directory got removed
-        # we can delete the directory also
-        while self.ftp.get_folder_content(srv_full_path):
-            await asyncio.sleep(WATERFALL_TIME)
-
-        async with lock:
-            await queue_low.put(["remove_folder", (srv_full_path,)])
-        self.to_remove_from_dict.append(removed_directory)
 
     # subtract current number of os separator to the number of os separator for the root directory
     # if it's superior to the max depth, we do nothing
