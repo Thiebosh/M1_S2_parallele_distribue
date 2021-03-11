@@ -11,6 +11,7 @@ from ftplib import error_perm
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 WATERFALL_TIME = 0.05
+THREAD_THRESHOLD = 10
 
 
 class DirectoryManager:
@@ -74,7 +75,7 @@ class DirectoryManager:
 
                 self.ftp.connect()
                 # search for an eventual updates of files in the root directory
-                tasks.append(self.search_updates(self.root_directory, lock, queue_high, queue_low))
+                tasks.append(self.search_updates(self.root_directory, lock, queue_high, queue_low, nb_multi))
 
                 # if the length of the files & folders to synchronize != number of path explored
                 # file / folder got removed
@@ -102,7 +103,7 @@ class DirectoryManager:
             while shared_threads_working.value > 0:  # attendre fin threads
                 await asyncio.sleep(0.1)
 
-    async def search_updates(self, directory, lock, queue_high, queue_low):
+    async def search_updates(self, directory, lock, queue_high, queue_low, nb_multi):
         # scan recursively all files & directories in the root directory
 
         sorted_tasks = []
@@ -139,8 +140,11 @@ class DirectoryManager:
 
                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
                             # add this directory to the FTP server
-                            async with lock:
-                                await queue_high.put(["create_folder", (srv_full_path,)])
+                            if nb_multi > THREAD_THRESHOLD:
+                                async with lock:
+                                    await queue_high.put(["create_folder", (srv_full_path,)])
+                            else:
+                                self.ftp.create_folder(srv_full_path)
 
             for file_name in files:
                 file_path = os.path.join(path_file, file_name)
@@ -159,11 +163,17 @@ class DirectoryManager:
                             # file get updates
                             split_path = file_path.split(self.root_directory)
                             srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
-                            async with lock:
-                                await queue_high.put(["remove_file", (srv_full_path,)])
+
+                            if nb_multi > THREAD_THRESHOLD:
+                                async with lock:
+                                    await queue_high.put(["remove_file", (srv_full_path,)])
+                                    # update this file on the FTP server
+                                    file_size = os.stat(file_path).st_size
+                                    sorted_tasks.append((file_size, ["file_transfer", (path_file, srv_full_path, file_name)]))
+                            else:
+                                self.ftp.remove_file(srv_full_path)
                                 # update this file on the FTP server
-                                file_size = os.stat(file_path).st_size
-                                sorted_tasks.append((file_size, ["file_transfer", (path_file, srv_full_path, file_name)]))
+                                self.ftp.file_transfer(path_file, srv_full_path, file_name)
 
                     else:
                         # file get created
