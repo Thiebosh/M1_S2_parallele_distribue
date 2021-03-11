@@ -23,15 +23,15 @@ Keep algorithm (mainly) unchanged:
 
 
 Apply parallelization meccanisms:
-- Send tasks to thread pool with an asyncio queue (see next point)
 - Pass synchronize_directory, search_updates and any_removals asynchrones :
     - while one is awaiting, the other (if called) can carry on
     - sleep time does not cause unnecessary CPU load
-- cascading folders: waits for parent creation or deletion of all items
+- Send tasks to thread pool with an asyncio queue
 - Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
+- cascading folders: waits for parent creation or deletion of all items
 - Add execution stop : workers stop simultaneously rather than after their sleeping time
-- Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
 - Add try catch bocks : intercept keyboard interrupt where is needed, and set events as needed for provoke ending,
+- Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
 - Add time difference calculation to synchronize late workers with others
 
 
@@ -77,17 +77,28 @@ change algorithm:
 
 #### V3
 
-change algorithm: 
-- File transfers executions are gathered and sorted by weight before transmit tasks to workers. **todo**
-
 **Idea :** improve parallelization performances with algorithm
 
-Step1 :
-- sort files transfert by weigth in auxiliary thread before send them in queue
+change algorithm: 
+- File transfers executions are gathered and sorted by weight before transmit tasks to workers.
 
 
-V4, replace threads by process "just to see" ?
+**Step1 :**
+- sort files transfert by weigth before send them in queue
 
+
+#### V4
+
+**Idea :** improve performances with test results
+
+change algorithm: 
+- Use serialized for removals
+- Use parallelized for search updates if enough threads
+
+
+#### futures versions
+- test with process ? probably heavier so worst
+- test with threading.lock and threading.queue ? maybe lighter (no await, no run on main loop)
 
 #### notes
 - décorateur asyncio.coroutine rend fonction synchrone exécutable dans un contexte asynchrone. Mais si la fonction décorée ne fait aucun appel à asyncio, elle est exécutée de façon synchrone.
