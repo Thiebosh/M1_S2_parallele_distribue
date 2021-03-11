@@ -6,8 +6,8 @@ from talk_to_ftp import TalkToFTP
 import asyncio
 import multiprogramming
 from logger import Logger
-import multiprocessing
 from ftplib import error_perm
+import threading
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 WATERFALL_TIME = 0.05
@@ -51,11 +51,8 @@ class DirectoryManager:
         queue_high = asyncio.Queue()
         queue_low = asyncio.Queue()
         lock = asyncio.Lock()
-        shared_threads_working = multiprocessing.Value("i", nb_multi,
-                                                       lock=False)  # share var across all (threads in) process
         multiprogramming.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue_high, queue_low,
-                                                evt_end, shared_threads_working,
-                                                evt_done_main, evt_done_workers, frequency))
+                                                evt_end, evt_done_main, evt_done_workers, frequency))
 
         try:
             duration = 0
@@ -99,7 +96,7 @@ class DirectoryManager:
             Logger.log_critical(e)
 
         finally:
-            while shared_threads_working.value > 0:  # attendre fin threads
+            while threading.active_count() - multiprogramming.NON_WORKER_THREADS > 0:  # attendre fin threads
                 await asyncio.sleep(0.1)
 
     async def search_updates(self, directory, lock, queue_high, queue_low):
