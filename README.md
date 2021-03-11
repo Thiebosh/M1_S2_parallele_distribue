@@ -1,5 +1,9 @@
 # M1_S2_parallele_distribue
 
+Python compatibility : 3.6, 3.7, 3.8, 3.9
+
+Note : in your filezilla user settings, change the maximum connection count to 50 or 100
+
 changelog :
 
 #### V0
