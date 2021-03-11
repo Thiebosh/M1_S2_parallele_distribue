@@ -113,5 +113,11 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
 
 def thread_pool(nb_threads, worker_args):
     shared_time_ref = multiprocessing.Value("d", time.time(), lock=False) # share var across all (threads in) process
-    for id in range(nb_threads):
-        threading.Thread(target=lambda:asyncio.run(async_worker(id, *worker_args, shared_time_ref))).start()
+    if version_info < (3,7):
+        for id in range(nb_threads):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            threading.Thread(target=lambda:loop.run_until_complete(async_worker(id, *worker_args, shared_time_ref))).start()
+    else:
+        for id in range(nb_threads):
+            threading.Thread(target=lambda:asyncio.run(async_worker(id, *worker_args, shared_time_ref))).start()
