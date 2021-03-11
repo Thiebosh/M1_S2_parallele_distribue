@@ -75,7 +75,7 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
         while not asyncio.run_coroutine_threadsafe(event_wait(evt_end, duration), main_loop).result(): # run on main thread's loop
 
             if evt_done_workers.is_set():
-                duration = frequency - ((time.time() - shared_time_ref.value) % frequency)
+                duration = frequency - (time.time() - shared_time_ref.value)
                 continue
 
             task, duration = asyncio.run_coroutine_threadsafe(synchronous_core(*core_args), main_loop).result() # run on main thread's loop
@@ -107,7 +107,7 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
             main_loop.call_soon_threadsafe(lambda: evt_done_workers.set()) # run on main thread's loop
         shared_threads_working.value -= 1
 
-    Logger.log_info(f"thread {id} - Stop ({threading.active_count()-2} left)") # main thread, async_input thread
+    Logger.log_info(f"thread {id} - Stop ({threading.active_count()-3} left)") # main, async_input, this
 
 
 def thread_pool(nb_threads, worker_args):

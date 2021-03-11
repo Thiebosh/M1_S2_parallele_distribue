@@ -159,7 +159,6 @@ class DirectoryManager:
                             # file get updates
                             split_path = file_path.split(self.root_directory)
                             srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
-                            Logger.log_info("Updated")
                             async with lock:
                                 await queue_high.put(["remove_file", (srv_full_path,)])
                                 # update this file on the FTP server
@@ -171,20 +170,14 @@ class DirectoryManager:
                         self.synchronize_dict[file_path] = File(file_path)
                         split_path = file_path.split(self.root_directory)
                         srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
-                        Logger.log_info("Created")
                         # add this file on the FTP server
                         file_size = os.stat(file_path).st_size
                         sorted_tasks.append((file_size, ["file_transfer", (path_file, srv_full_path, file_name)], file_path))
 
         # Sort task in descending order of size
-        sorted_tasks = sorted(sorted_tasks, key=lambda x: x[0], reverse=True)
-        print(len(sorted_tasks))
-        for task in sorted_tasks:
-
-            async with lock:
+        async with lock:  # get once save time
+            for task in sorted(sorted_tasks, key=lambda x: x[0], reverse=True):
                 await queue_low.put(task[1])
-                print(queue_low.qsize())
-            sorted_tasks.remove(task)
 
     async def any_removals(self, lock, queue_high, queue_low):
         # get the list of the files & folders removed
