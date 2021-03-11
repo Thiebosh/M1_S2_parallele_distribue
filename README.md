@@ -23,15 +23,15 @@ Keep algorithm (mainly) unchanged:
 
 
 Apply parallelization meccanisms:
-- Send tasks to thread pool with an asyncio queue (see next point)
 - Pass synchronize_directory, search_updates and any_removals asynchrones :
     - while one is awaiting, the other (if called) can carry on
     - sleep time does not cause unnecessary CPU load
-- cascading folders: waits for parent creation or deletion of all items
+- Send tasks to thread pool with an asyncio queue
 - Securize concurrency executions by executing enqueue and unqueue operations in same "main thread" async loop
+- cascading folders: waits for parent creation or deletion of all items
 - Add execution stop : workers stop simultaneously rather than after their sleeping time
-- Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
 - Add try catch bocks : intercept keyboard interrupt where is needed, and set events as needed for provoke ending,
+- Add synchronous sleeps between main thread and workers threads with "3 way handshake style" events,
 - Add time difference calculation to synchronize late workers with others
 
 
