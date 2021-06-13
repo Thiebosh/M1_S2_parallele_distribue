@@ -1,3 +1,9 @@
+**Fév. à mars 2021 – Python : accélération logicielle, prog. parallèle et asynchrone**
+- Solution de synchronisation d’un dossier avec un serveur distant à période fixe.
+- Transfert parallélisé des fichiers et aucune charge processeur entre deux cycles : développement de threads asynchrones, réveillés « sur front d’horloge » par un dérivé du « 3 way handshake ». Gestion analogue de l’extinction, sans délai.
+
+<br><hr><br>
+
 # M1_S2_parallele_distribue
 
 Python compatibility : 3.6, 3.7, 3.8, 3.9
@@ -103,30 +109,4 @@ change algorithm:
 #### futures versions
 - test with process ? probably heavier so worst
 - test with threading.lock and threading.queue ? maybe lighter (no await, no run on main loop)
-
-#### notes
-- décorateur asyncio.coroutine rend fonction synchrone exécutable dans un contexte asynchrone. Mais si la fonction décorée ne fait aucun appel à asyncio, elle est exécutée de façon synchrone.
-
-- mot clé await attend la fin de l'exécution de la coroutine avant de passer à la suite. Donc si coroutine synchrone, fonctionnement purement synchrone.
-
-- tasks n'apporte pas grand chose, mais peut provoquer exécution parallèle avec un micro sleep
-
-- garde les ftp connect et disconnect de synchronize directory car cette connexion sert à consulter l'état de l'arborescence en ligne
-
-- threads = 2 approches :
-    - connexion pour exécuter une série de tâches puis déconnexion
-    - connexion le temps d'exécuter une tâche puis déconnexion
-
-- threads = plusieurs choses à guetter :
-    - remplissage de la queue
-    - événement de fermeture
-    - éventuellement événement de connexion / déconnexion
-
-- exemple async tasks : https://docs.python.org/3/library/asyncio-queue.html
-
-- aioftp : port 21 par défaut
-
-- asyncio event doit être déclaré et setté dans la même async loop mais il peut être lu depuis d'autres loops. Attention : il s'agit d'une async loop donc pour une application immédiate, doit passer par thread (-> call_soon_threadsafe)
-
-- pour esquiver pb de concurrences avec async lock, run tout dans la main loop (appel de fonction, retourne un future object contenant les résultats)
-
+- evaluate initial time and execution time separately
