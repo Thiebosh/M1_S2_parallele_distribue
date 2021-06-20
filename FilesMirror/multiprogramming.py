@@ -38,7 +38,7 @@ async def event_wait(evt, timeout):
 
 # thread section
 
-async def synchronous_core(id, lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, duration, shared_time_ref):
+async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, duration, shared_time_ref):
     task = None
 
     async with lock:
@@ -68,7 +68,7 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
     functions = {"create_folder": ftp.create_folder,
                  "file_transfer": ftp.file_transfer}
 
-    core_args = (id, lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, 1, shared_time_ref)
+    core_args = (lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, 1, shared_time_ref)
 
     try:
         duration = 0

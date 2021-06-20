@@ -73,8 +73,6 @@ class DirectoryManager:
                 # init to an empty list for each synchronization
                 self.to_remove_from_dict = []
 
-                tasks = []
-
                 self.ftp.connect()
                 # search for an eventual updates of files in the root directory
                 await asyncio.gather(self.search_updates(self.root_directory, lock, queue_high, queue_low, is_multi))
