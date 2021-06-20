@@ -106,8 +106,15 @@ change algorithm:
 - Use parallelized for search updates if enough threads
 
 
+#### V5 - after return of work - to bench
+
+**Idea :** improve performances with test results
+
+change algorithm: 
+- Use serialized for folder creations : from two to one queue
+
+
 #### futures versions
 - test with process ? probably heavier so worst
 - evaluate initial time and execution time separately
-- remove priorized queue as we just need to send files : folder creation must be more efficient in synchronous way => need to bench it
 - test with threading.lock and threading.queue ? maybe lighter (no await, no run on main loop)

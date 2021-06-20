@@ -48,15 +48,14 @@ class DirectoryManager:
 
         is_multi = nb_multi > THREAD_THRESHOLD
 
-        queue_high = asyncio.Queue()
-        queue_low = asyncio.Queue()
+        queue = asyncio.Queue()
         lock = asyncio.Lock()
 
         if is_multi:
             evt_done_main = asyncio.Event()
             evt_done_workers = asyncio.Event()
             
-            multiprogramming.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue_high, queue_low,
+            multiprogramming.thread_pool(nb_multi, (self.ftp_website, asyncio.get_event_loop(), lock, queue,
                                                     evt_end, evt_done_main, evt_done_workers, frequency))
 
         try:
@@ -75,7 +74,7 @@ class DirectoryManager:
 
                 self.ftp.connect()
                 # search for an eventual updates of files in the root directory
-                await asyncio.gather(self.search_updates(self.root_directory, lock, queue_high, queue_low, is_multi))
+                await asyncio.gather(self.search_updates(self.root_directory, lock, queue, is_multi))
 
                 # if the length of the files & folders to synchronize != number of path explored
                 # file / folder got removed
@@ -103,7 +102,7 @@ class DirectoryManager:
                 while threading.active_count() - multiprogramming.NON_WORKER_THREADS > 0: # attendre fin threads
                     await asyncio.sleep(0.1)
 
-    async def search_updates(self, directory, lock, queue_high, queue_low, is_multi):
+    async def search_updates(self, directory, lock, queue, is_multi):
         # scan recursively all files & directories in the root directory
 
         sorted_tasks = []
@@ -140,11 +139,7 @@ class DirectoryManager:
 
                         if not self.ftp.if_exist(srv_full_path, self.ftp.get_folder_content(directory_split)):
                             # add this directory to the FTP server
-                            if is_multi:
-                                async with lock:
-                                    await queue_high.put(["create_folder", (srv_full_path,)])
-                            else:
-                                self.ftp.create_folder(srv_full_path)
+                            self.ftp.create_folder(srv_full_path)
 
             for file_name in files:
                 file_path = os.path.join(path_file, file_name)
@@ -164,15 +159,12 @@ class DirectoryManager:
                             split_path = file_path.split(self.root_directory)
                             srv_full_path = '{}{}'.format(self.ftp.directory, split_path[1])
 
+                            # update this file on the FTP server
+                            self.ftp.remove_file(srv_full_path)
                             if is_multi:
                                 async with lock:
-                                    await queue_high.put(["remove_file", (srv_full_path,)])
-                                    # update this file on the FTP server
-                                    file_size = os.stat(file_path).st_size
-                                    sorted_tasks.append((file_size, ["file_transfer", (path_file, srv_full_path, file_name)]))
+                                    sorted_tasks.append((os.stat(file_path).st_size, ["file_transfer", (path_file, srv_full_path, file_name)]))
                             else:
-                                self.ftp.remove_file(srv_full_path)
-                                # update this file on the FTP server
                                 self.ftp.file_transfer(path_file, srv_full_path, file_name)
 
                     else:
@@ -191,7 +183,7 @@ class DirectoryManager:
             # Sort task in descending order of size
             async with lock:  # get once save time
                 for task in sorted(sorted_tasks, key=lambda x: x[0], reverse=True):
-                    await queue_low.put(task[1])
+                    await queue.put(task[1])
 
     def any_removals(self):
         # get the list of the files & folders removed

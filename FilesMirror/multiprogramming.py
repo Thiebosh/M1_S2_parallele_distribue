@@ -38,15 +38,12 @@ async def event_wait(evt, timeout):
 
 # thread section
 
-async def synchronous_core(lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, duration, shared_time_ref):
+async def synchronous_core(lock, queue, evt_done_main, evt_done_workers, frequency, duration, shared_time_ref):
     task = None
 
     async with lock:
-        if not queue_high.empty():
-            task = await queue_high.get()
-
-        elif not queue_low.empty():
-            task = await queue_low.get()
+        if not queue.empty():
+            task = await queue.get()
 
     if not task and evt_done_main.is_set():
         shared_time_ref.value = time.time()
@@ -62,13 +59,13 @@ async def synchronous_enqueue(lock, queue, task):
         await queue.put(task)
 
 
-async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
+async def async_worker(id, ftp_website, main_loop, lock, queue,
                        evt_end, evt_done_main, evt_done_workers, frequency, shared_time_ref):
     ftp = TalkToFTP(ftp_website)
     functions = {"create_folder": ftp.create_folder,
                  "file_transfer": ftp.file_transfer}
 
-    core_args = (lock, queue_high, queue_low, evt_done_main, evt_done_workers, frequency, 1, shared_time_ref)
+    core_args = (lock, queue, evt_done_main, evt_done_workers, frequency, 1, shared_time_ref)
 
     try:
         duration = 0
@@ -90,7 +87,7 @@ async def async_worker(id, ftp_website, main_loop, lock, queue_high, queue_low,
                     functions[task[0]](*task[1])
                 except error_perm: # "425 Can't open data connection for transfer of '...'"
                     if task[0] != "create_folder" and error_perm[:3] != "550": # "550 Directory already exists"
-                        asyncio.run_coroutine_threadsafe(synchronous_enqueue(lock, queue_low, task), main_loop) # retry later
+                        asyncio.run_coroutine_threadsafe(synchronous_enqueue(lock, queue, task), main_loop) # retry later
 
             else:
                 Logger.log_critical(f"thread {id} - Unknow method")
