@@ -46,7 +46,7 @@ class DirectoryManager:
         evt_end = asyncio.Event()
         asyncio.get_event_loop().call_soon(asyncio.ensure_future, multiprogramming.async_input(evt_end))
 
-        is_multi = nb_multi > THREAD_THRESHOLD
+        is_multi = nb_multi >= THREAD_THRESHOLD
 
         queue_high = asyncio.Queue()
         queue_low = asyncio.Queue()

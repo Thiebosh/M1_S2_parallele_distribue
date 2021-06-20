@@ -7,6 +7,7 @@ from logger import Logger
 import time
 import multiprocessing
 from ftplib import error_perm
+from sys import version_info
 
 
 NON_WORKER_THREADS = 2  # main, async_input
