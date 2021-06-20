@@ -11,7 +11,7 @@ import threading
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 WATERFALL_TIME = 0.05
-THREAD_THRESHOLD = 10
+THREAD_THRESHOLD = 5
 
 
 class DirectoryManager:
